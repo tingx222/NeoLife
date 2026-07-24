@@ -24,10 +24,29 @@ public class SimpleRedisLock implements ILock{
     public static final String ID_PREFIX = UUID.randomUUID().toString(true) + "-";
 
     //lua脚本的初始化
+    /**
+     * 1. 项目启动
+     *        ↓
+     * 2. 加载 SimpleRedisLock 类
+     *        ↓
+     * 3. 执行 static {} 静态代码块
+     *        ↓
+     * 4. 从 resources/unlock.lua 读取脚本内容
+     *        ↓
+     * 5. 保存到 UNLOCK_SCRIPT 中
+     *        ↓
+     * 6. 项目运行中，所有解锁都复用这个脚本
+     */
+    //这个对象专门装 Lua 脚本
     private static final DefaultRedisScript<Long> UNLOCK_SCRIPT;
+    //静态代码块，在类第一次被加载时执行，且只执行一次。
+    //因为 static，所有 SimpleRedisLock 对象都共用同一个 Lua 脚本对象，节省内存。
     static {
+        //创建一个 DefaultRedisScript 对象，用来承载 Lua 脚本。
         UNLOCK_SCRIPT = new DefaultRedisScript<>();
+        //设置脚本文件位置
         UNLOCK_SCRIPT.setLocation(new ClassPathResource("unlock.lua"));
+        //设置返回类型
         UNLOCK_SCRIPT.setResultType(Long.class);
     }
 
