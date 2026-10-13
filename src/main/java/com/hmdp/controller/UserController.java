@@ -33,6 +33,10 @@ public class UserController {
 
     @Resource
     private IUserInfoService userInfoService;
+    @Resource
+    private org.springframework.data.redis.core.StringRedisTemplate redis;
+    @Resource
+    private com.hmdp.service.DiscoveryService discovery;
 
     /**
      * 发送手机验证码
@@ -58,9 +62,10 @@ public class UserController {
      * @return 无
      */
     @PostMapping("/logout")
-    public Result logout(){
-        // TODO 实现登出功能
-        return Result.fail("功能未完成");
+    public Result logout(@RequestHeader("authorization") String token){
+        redis.delete(com.hmdp.utils.RedisConstants.LOGIN_USER_KEY+token);
+        UserHolder.removeUser();
+        return Result.ok();
     }
 
     @GetMapping("/me")
@@ -69,6 +74,13 @@ public class UserController {
         UserDTO user = UserHolder.getUser();
         return Result.ok(user);
     }
+
+    @GetMapping("/{id}")
+    public Result profile(@PathVariable Long id){User user=userService.getById(id);return user==null?Result.fail("用户不存在"):Result.ok(cn.hutool.core.bean.BeanUtil.copyProperties(user,UserDTO.class));}
+    @PostMapping("/sign") public Result sign(){return discovery.sign();}
+    @GetMapping("/sign/count") public Result signCount(){return discovery.signCount();}
+    @PostMapping("/uv") public Result visit(){return discovery.visit();}
+    @GetMapping("/uv/count") public Result uv(){return discovery.uv();}
 
     @GetMapping("/info/{id}")
     public Result info(@PathVariable("id") Long userId){

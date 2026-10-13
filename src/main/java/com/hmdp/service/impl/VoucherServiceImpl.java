@@ -38,6 +38,9 @@ public class VoucherServiceImpl extends ServiceImpl<VoucherMapper, Voucher> impl
     @Override
     @Transactional
     public void addSeckillVoucher(Voucher voucher) {
+        if(voucher.getStock()==null || voucher.getStock()<0 || voucher.getBeginTime()==null || voucher.getEndTime()==null
+                || !voucher.getEndTime().isAfter(voucher.getBeginTime()))throw new IllegalArgumentException("秒杀库存或时间无效");
+        voucher.setType(1);
         // 保存优惠券
         save(voucher);
         // 保存秒杀信息

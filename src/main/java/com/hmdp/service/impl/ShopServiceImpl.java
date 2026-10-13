@@ -90,9 +90,18 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
             return Result.fail("店铺id不能为空");
         }
         //1.更新数据库
+        Shop previous = getById(id);
+        if(previous == null)return Result.fail("店铺不存在");
         updateById(shop);
         //2.删除缓存
-        stringRedisTemplate.delete(CACHE_SHOP_KEY + id);
+        org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+            new org.springframework.transaction.support.TransactionSynchronization() {
+                @Override public void afterCommit() {
+                    stringRedisTemplate.delete(CACHE_SHOP_KEY + id);
+                    stringRedisTemplate.delete(SHOP_GEO_KEY + previous.getTypeId());
+                    if(shop.getTypeId()!=null)stringRedisTemplate.delete(SHOP_GEO_KEY + shop.getTypeId());
+                }
+            });
         return Result.ok();
     }
 }

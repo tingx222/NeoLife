@@ -97,7 +97,7 @@ public class CacheClient {
 
     private boolean tryLock(String key){
         //setnx
-        Boolean flag = stringRedisTemplate.opsForValue().setIfAbsent(key, "1", 10, TimeUnit.SECONDS);
+        Boolean flag = stringRedisTemplate.opsForValue().setIfAbsent(key, SimpleRedisLock.ID_PREFIX + Thread.currentThread().getId(), 10, TimeUnit.SECONDS);
         /**
          * 这里直接return flag会进行自动拆箱
          * 因为这个不是基本类型的boolean，这个Boolean是boolean的包装类
@@ -107,7 +107,10 @@ public class CacheClient {
     }
 
     private void unlock(String key){
-        stringRedisTemplate.delete(key);
+        org.springframework.data.redis.core.script.DefaultRedisScript<Long> script = new org.springframework.data.redis.core.script.DefaultRedisScript<>();
+        script.setLocation(new org.springframework.core.io.ClassPathResource("unlock.lua"));
+        script.setResultType(Long.class);
+        stringRedisTemplate.execute(script, java.util.Collections.singletonList(key), SimpleRedisLock.ID_PREFIX + Thread.currentThread().getId());
     }
 
     //逻辑过期 解决缓存击穿
@@ -128,7 +131,24 @@ public class CacheClient {
          */
         //2.判断是否命中缓存,未命中返回null
         if(StrUtil.isBlank(Json)){
-            return null;
+            if(Json != null) return null;
+            String coldLock = LOCK_SHOP_KEY + id;
+            for(int attempt=0;attempt<20;attempt++){
+                if(tryLock(coldLock)){
+                    try{
+                        if(stringRedisTemplate.opsForValue().get(key)!=null)
+                            return queryWithLogicalExpire(keyPrefix,id,type,dbFallback,time,unit);
+                        R loaded=dbFallback.apply(id);
+                        if(loaded==null)stringRedisTemplate.opsForValue().set(key,"",CACHE_NULL_TTL,TimeUnit.MINUTES);
+                        else setWithLogicalExpire(key,loaded,time,unit);
+                        return loaded;
+                    }finally{unlock(coldLock);}
+                }
+                try{Thread.sleep(50);}catch(InterruptedException e){Thread.currentThread().interrupt();throw new IllegalStateException("缓存查询被中断",e);}
+                String cached=stringRedisTemplate.opsForValue().get(key);
+                if(cached!=null)return queryWithLogicalExpire(keyPrefix,id,type,dbFallback,time,unit);
+            }
+            throw new IllegalStateException("缓存正在加载，请稍后重试");
         }
 
         //3.命中，判断是否过期(反序列化)
@@ -164,6 +184,7 @@ public class CacheClient {
 
                 //再次检查redis缓存是否过期，做doublecheck,如果存在则无需重建缓存
                 if(newExpireTime.isAfter(LocalDateTime.now())){
+                    unlock(lockKey);
                     return newr;
                 }
             }
@@ -176,7 +197,8 @@ public class CacheClient {
                     //查询数据库
                     R r1 = dbFallback.apply(id);
                     //写入redius
-                    this.setWithLogicalExpire(key, r1, time, unit);
+                    if(r1 == null) stringRedisTemplate.opsForValue().set(key,"",CACHE_NULL_TTL,TimeUnit.MINUTES);
+                    else this.setWithLogicalExpire(key, r1, time, unit);
                 } catch (Exception e) {
                     throw new RuntimeException(e);
                 } finally {

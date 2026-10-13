@@ -24,7 +24,7 @@ public class RedisIdWorker {
 
     public long nextId(String keyPrefix) {
         //1.生成时间戳
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         long nowSecond = now.toEpochSecond(ZoneOffset.UTC);
         long timeStamp = nowSecond - BEGIN_TIMESTAMP;
 
@@ -33,6 +33,7 @@ public class RedisIdWorker {
         String date = now.format(DateTimeFormatter.ofPattern("yyyy:MM:dd"));
         //2.2自增
         Long count = stringRedisTemplate.opsForValue().increment("icr:" + keyPrefix + ":" + date);
+        if(count==null || count>0xffffffffL)throw new IllegalStateException("ID序列不可用或已耗尽");
 
         //3.拼接并返回
         return timeStamp << COUNT_BITS  | count;

@@ -31,3 +31,10 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Local API keys and diagnostic output
+/config/application.properties
+/config/application-local.properties
+/.env
+/.env.local
+/tmp/

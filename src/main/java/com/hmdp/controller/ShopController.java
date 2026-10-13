@@ -25,6 +25,8 @@ public class ShopController {
 
     @Resource
     public IShopService shopService;
+    @Resource
+    private com.hmdp.service.DiscoveryService discovery;
 
     /**
      * 根据id查询商铺信息
@@ -45,6 +47,7 @@ public class ShopController {
     public Result saveShop(@RequestBody Shop shop) {
         // 写入数据库
         shopService.save(shop);
+        discovery.invalidate(shop.getTypeId());
         // 返回店铺id
         return Result.ok(shop.getId());
     }
@@ -70,14 +73,12 @@ public class ShopController {
     @GetMapping("/of/type")
     public Result queryShopByType(
             @RequestParam("typeId") Integer typeId,
-            @RequestParam(value = "current", defaultValue = "1") Integer current
+            @RequestParam(value = "current", defaultValue = "1") Integer current,
+            @RequestParam(required = false) Double x,
+            @RequestParam(required = false) Double y
     ) {
         // 根据类型分页查询
-        Page<Shop> page = shopService.query()
-                .eq("type_id", typeId)
-                .page(new Page<>(current, SystemConstants.DEFAULT_PAGE_SIZE));
-        // 返回数据
-        return Result.ok(page.getRecords());
+        return discovery.nearby(typeId,current,x,y);
     }
 
     /**

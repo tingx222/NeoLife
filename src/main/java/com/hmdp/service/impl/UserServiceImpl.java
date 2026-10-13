@@ -78,9 +78,14 @@ public class UserServiceImpl extends ServiceImpl<UserMapper, User> implements IU
         String code = loginForm.getCode();
 
         //3.不一致，报错
-        if (cacheCode == null || !cacheCode.equals(code)) {
+        if (code == null || cacheCode == null || !cacheCode.equals(code)) {
             return Result.fail("验证码错误");
         }
+
+        org.springframework.data.redis.core.script.DefaultRedisScript<Long> consumeCode = new org.springframework.data.redis.core.script.DefaultRedisScript<>(
+                "if redis.call('GET',KEYS[1]) == ARGV[1] then return redis.call('DEL',KEYS[1]) else return 0 end",Long.class);
+        Long consumed=stringRedisTemplate.execute(consumeCode,java.util.Collections.singletonList(LOGIN_CODE_KEY+phone),code);
+        if(consumed==null || consumed!=1)return Result.fail("验证码已失效，请重新获取");
 
         //4.一致，根据手机号查询用户 select * from tb_user where phone = ?(mybatisplus--简化单表操作）
         User user = query().eq("phone", phone).one();
