@@ -27,6 +27,8 @@ public class AsyncSeckillService {
     private boolean workerEnabled;
     @org.springframework.beans.factory.annotation.Value("${hmdp.order-prefix:}")
     private String prefix = "";
+    @org.springframework.beans.factory.annotation.Autowired
+    private org.springframework.beans.factory.ObjectProvider<RabbitOrderTransport> rabbit;
     public AsyncSeckillService(StringRedisTemplate redis,RedissonClient locks,ISeckillVoucherService vouchers,
                                IVoucherOrderService orders,OrderWriter writer,RedisIdWorker ids){
         this.redis=redis;this.locks=locks;this.vouchers=vouchers;this.orders=orders;this.writer=writer;this.ids=ids;
@@ -35,17 +37,26 @@ public class AsyncSeckillService {
     private String activity(Long id){return prefix+"seckill:activity:"+id;}
     public Result submit(Long voucherId){
         if(voucherId==null || voucherId<1)return Result.fail("券ID无效");
+        if(!prepare(voucherId))return Result.fail("秒杀缓存未准备或需对账恢复");
+        String key=activity(voucherId);
+        long id=ids.nextId("order");Long uid=UserHolder.getUser().getId();
+        Long code=redis.execute(reserve,Arrays.asList(key,prefix+"seckill:purchased:"+voucherId,prefix+STREAM,prefix+"seckill:pending"),uid.toString(),voucherId.toString(),Long.toString(id));
+        if(code==null)return Result.fail("秒杀服务不可用");
+        String[] errors={"", "库存不足","秒杀尚未开始","秒杀已经结束","秒杀缓存未就绪","不能重复下单"};
+        return code==0?Result.ok(Long.toString(id)):Result.fail(code>=1 && code<errors.length?errors[code.intValue()]:"秒杀服务不可用");
+    }
+    public boolean prepare(Long voucherId){
         String key=activity(voucherId);
         if(!Boolean.TRUE.equals(redis.hasKey(key))){
             // Serializing with the worker prevents rebuilding stock across an in-flight commit.
             RLock gate=locks.getLock("lock:orders:worker");gate.lock();
             try{
                 if(!Boolean.TRUE.equals(redis.hasKey(key))){
-                    SeckillVoucher v=vouchers.getById(voucherId);if(v==null)return Result.fail("秒杀券不存在");
+                    SeckillVoucher v=vouchers.getById(voucherId);if(v==null)return false;
                     // Only this voucher's pending reservations block safe initialization.
                     List<MapRecord<String,Object,Object>> outstanding=redis.opsForStream().range(prefix+STREAM,org.springframework.data.domain.Range.unbounded());
                     if(outstanding!=null)for(MapRecord<String,Object,Object> record:outstanding)
-                        if(voucherId.toString().equals(String.valueOf(record.getValue().get("voucherId"))))return Result.fail("秒杀缓存需恢复，请联系管理员");
+                        if(voucherId.toString().equals(String.valueOf(record.getValue().get("voucherId"))))return false;
                     String purchased=prefix+"seckill:purchased:"+voucherId;redis.delete(purchased);
                     for(VoucherOrder o:orders.list(new QueryWrapper<VoucherOrder>().eq("voucher_id",voucherId)))redis.opsForSet().add(purchased,o.getUserId().toString());
                     Map<String,String> data=new HashMap<>();data.put("stock",v.getStock().toString());
@@ -55,11 +66,7 @@ public class AsyncSeckillService {
                 }
             }finally{gate.unlock();}
         }
-        long id=ids.nextId("order");Long uid=UserHolder.getUser().getId();
-        Long code=redis.execute(reserve,Arrays.asList(key,prefix+"seckill:purchased:"+voucherId,prefix+STREAM,prefix+"seckill:pending"),uid.toString(),voucherId.toString(),Long.toString(id));
-        if(code==null)return Result.fail("秒杀服务不可用");
-        String[] errors={"", "库存不足","秒杀尚未开始","秒杀已经结束","秒杀缓存未就绪","不能重复下单"};
-        return code==0?Result.ok(Long.toString(id)):Result.fail(code>=1 && code<errors.length?errors[code.intValue()]:"秒杀服务不可用");
+        return true;
     }
     public Result status(Long id){
         Long uid=UserHolder.getUser().getId();VoucherOrder order=orders.getOne(new QueryWrapper<VoucherOrder>().eq("id",id).eq("user_id",uid));
@@ -85,10 +92,11 @@ public class AsyncSeckillService {
             for(MapRecord<String,Object,Object> record:list){
                 Map<Object,Object> body=record.getValue();VoucherOrder order=new VoucherOrder();
                 order.setId(Long.valueOf(body.get("id").toString()));order.setUserId(Long.valueOf(body.get("userId").toString()));order.setVoucherId(Long.valueOf(body.get("voucherId").toString()));
-                writer.persist(order);
+                RabbitOrderTransport transport=rabbit.getIfAvailable();
+                if(transport!=null)transport.publish(order);else writer.persist(order);
                 redis.opsForStream().acknowledge(prefix+STREAM,GROUP,record.getId());
                 redis.opsForStream().delete(prefix+STREAM,record.getId());
-                redis.opsForHash().delete(prefix+"seckill:pending",order.getId().toString());
+                if(transport==null)redis.opsForHash().delete(prefix+"seckill:pending",order.getId().toString());
             }
         }catch(Exception e){log.warn("订单消费失败，消息保留于Pending等待重试: {}",e.getClass().getSimpleName());}
         finally{gate.unlock();}
