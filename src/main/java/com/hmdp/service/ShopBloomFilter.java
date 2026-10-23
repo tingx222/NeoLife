@@ -15,7 +15,7 @@ public class ShopBloomFilter {
     private final RedissonClient redisson; private final ShopMapper shops; private final StringRedisTemplate redis;
     private static final String NAME="shop:bloom:v1",READY=NAME+":ready";
     public ShopBloomFilter(RedissonClient redisson,ShopMapper shops,StringRedisTemplate redis){this.redisson=redisson;this.shops=shops;this.redis=redis;}
-    public void add(Long id){RBloomFilter<Long> bloom=redisson.getBloomFilter(NAME);bloom.tryInit(1000000,0.01);bloom.add(id);}
+    public void add(Long id){RBloomFilter<Long> bloom=redisson.getBloomFilter(NAME);if(!bloom.isExists())redis.delete(READY);bloom.tryInit(1000000,0.01);bloom.add(id);}
     public boolean mightExist(Long id){
         if(id==null || id<1)return false;
         try{

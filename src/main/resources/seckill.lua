@@ -12,4 +12,5 @@ redis.call('XADD',KEYS[3],'*','id',ARGV[3],'userId',ARGV[1],'voucherId',ARGV[2])
 redis.call('HINCRBY',KEYS[1],'stock',-1)
 redis.call('SADD',KEYS[2],ARGV[1])
 redis.call('HSET',KEYS[4],ARGV[3],ARGV[1])
+if KEYS[5] then redis.call('HSET',KEYS[5],ARGV[3],ARGV[2]) end
 return 0

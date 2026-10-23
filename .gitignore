@@ -38,3 +38,5 @@ build/
 /.env
 /.env.local
 /tmp/
+__pycache__/
+*.pyc

@@ -40,7 +40,7 @@ public class AsyncSeckillService {
         if(!prepare(voucherId))return Result.fail("秒杀缓存未准备或需对账恢复");
         String key=activity(voucherId);
         long id=ids.nextId("order");Long uid=UserHolder.getUser().getId();
-        Long code=redis.execute(reserve,Arrays.asList(key,prefix+"seckill:purchased:"+voucherId,prefix+STREAM,prefix+"seckill:pending"),uid.toString(),voucherId.toString(),Long.toString(id));
+        Long code=redis.execute(reserve,Arrays.asList(key,prefix+"seckill:purchased:"+voucherId,prefix+STREAM,prefix+"seckill:pending",prefix+"seckill:pending:vouchers"),uid.toString(),voucherId.toString(),Long.toString(id));
         if(code==null)return Result.fail("秒杀服务不可用");
         String[] errors={"", "库存不足","秒杀尚未开始","秒杀已经结束","秒杀缓存未就绪","不能重复下单"};
         return code==0?Result.ok(Long.toString(id)):Result.fail(code>=1 && code<errors.length?errors[code.intValue()]:"秒杀服务不可用");
@@ -53,6 +53,7 @@ public class AsyncSeckillService {
             try{
                 if(!Boolean.TRUE.equals(redis.hasKey(key))){
                     SeckillVoucher v=vouchers.getById(voucherId);if(v==null)return false;
+                    if(redis.opsForHash().values(prefix+"seckill:pending:vouchers").contains(voucherId.toString()))return false;
                     // Only this voucher's pending reservations block safe initialization.
                     List<MapRecord<String,Object,Object>> outstanding=redis.opsForStream().range(prefix+STREAM,org.springframework.data.domain.Range.unbounded());
                     if(outstanding!=null)for(MapRecord<String,Object,Object> record:outstanding)
@@ -97,6 +98,7 @@ public class AsyncSeckillService {
                 redis.opsForStream().acknowledge(prefix+STREAM,GROUP,record.getId());
                 redis.opsForStream().delete(prefix+STREAM,record.getId());
                 if(transport==null)redis.opsForHash().delete(prefix+"seckill:pending",order.getId().toString());
+                if(transport==null)redis.opsForHash().delete(prefix+"seckill:pending:vouchers",order.getId().toString());
             }
         }catch(Exception e){log.warn("订单消费失败，消息保留于Pending等待重试: {}",e.getClass().getSimpleName());}
         finally{gate.unlock();}

@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 public class RabbitOrderTransport {
     public static final String QUEUE="hmdp.orders",DEAD="hmdp.orders.dead";
     private final RabbitTemplate rabbit;private final ObjectMapper mapper;private final OrderWriter writer;private final StringRedisTemplate redis;
+    @org.springframework.beans.factory.annotation.Value("${hmdp.order-prefix:}") private String prefix="";
     public RabbitOrderTransport(RabbitTemplate rabbit,ObjectMapper mapper,OrderWriter writer,StringRedisTemplate redis){this.rabbit=rabbit;this.mapper=mapper;this.writer=writer;this.redis=redis;}
     @Bean public Queue orderQueue(){return QueueBuilder.durable(QUEUE).withArgument("x-dead-letter-exchange","").withArgument("x-dead-letter-routing-key",DEAD).build();}
     @Bean public Queue deadQueue(){return QueueBuilder.durable(DEAD).build();}
@@ -35,7 +36,8 @@ public class RabbitOrderTransport {
         try{
             VoucherOrder order=mapper.readValue(message.getBody(),VoucherOrder.class);
             writer.persist(order); // Separate bean returns only after transaction commit.
-            redis.opsForHash().delete("seckill:pending",order.getId().toString());
+            redis.opsForHash().delete(prefix+"seckill:pending",order.getId().toString());
+            redis.opsForHash().delete(prefix+"seckill:pending:vouchers",order.getId().toString());
             channel.basicAck(tag,false);
         }catch(Exception e){channel.basicNack(tag,false,false);} // Durable DLQ retains failures for reconciliation.
     }

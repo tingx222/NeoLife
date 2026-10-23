@@ -15,6 +15,7 @@ public class CustomerTools {
     private final IShopService shops;
     private final IVoucherOrderService orders;
     private final ObjectMapper mapper;
+    @javax.annotation.Resource private com.hmdp.service.IVoucherService vouchers;
     public CustomerTools(IShopService shops, IVoucherOrderService orders, ObjectMapper mapper) {
         this.shops = shops; this.orders = orders; this.mapper = mapper;
     }
@@ -24,6 +25,7 @@ public class CustomerTools {
         definitions.add(tool("search_shops", "按店名关键字查询至多5个商户，返回地址、营业时间和均价", "keyword", "string"));
         definitions.add(tool("get_my_order", "查询当前登录用户自己的订单，不存在与无权查看返回相同结果", "orderId", "string"));
         definitions.add(tool("get_faq", "查询平台登录、秒杀、退款等常见问题", "topic", "string"));
+        definitions.add(tool("get_shop_vouchers", "根据商户ID查询公开优惠券及活动信息", "shopId", "string"));
         return mapper.valueToTree(definitions);
     }
 
@@ -43,6 +45,10 @@ public class CustomerTools {
     public String execute(String name, String arguments, Long userId) {
         try {
             JsonNode args = mapper.readTree(arguments);
+            if("get_shop_vouchers".equals(name)){
+                String id=text(args,"shopId",19);if(!id.matches("[1-9][0-9]{0,18}"))return "工具参数无效";
+                return mapper.writeValueAsString(vouchers.queryVoucherOfShop(Long.parseLong(id)).getData());
+            }
             if ("search_shops".equals(name)) {
                 String keyword = text(args, "keyword", 50);
                 List<Shop> found = shops.list(new QueryWrapper<Shop>().select("id", "name", "address", "open_hours", "avg_price")

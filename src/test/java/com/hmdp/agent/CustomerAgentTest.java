@@ -28,7 +28,12 @@ class CustomerAgentTest {
         when(redis.opsForValue()).thenReturn(values);
         when(redisson.getLock(anyString())).thenReturn(lock);
         when(lock.tryLock()).thenReturn(true);
-        when(tools.definitions()).thenReturn(mapper.createArrayNode());
+        com.fasterxml.jackson.databind.node.ArrayNode definitions=mapper.createArrayNode();
+        for(String name:Arrays.asList("get_my_order","get_faq")){
+            com.fasterxml.jackson.databind.node.ObjectNode tool=definitions.addObject();tool.put("type","function");
+            tool.putObject("function").put("name",name).putObject("parameters").put("type","object");
+        }
+        when(tools.definitions()).thenReturn(definitions);
         return new CustomerAgent(client, tools, mapper, redis, redisson);
     }
 

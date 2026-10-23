@@ -92,7 +92,7 @@ class CourseIntegrationTest {
     @Test void streamReservationConsumptionAndOwnedStatus(){
         long voucher=900000000L+author.getId();SeckillVoucher v=new SeckillVoucher();v.setVoucherId(voucher);v.setStock(1);
         v.setBeginTime(LocalDateTime.now(ZoneId.of("Asia/Shanghai")).minusHours(1));v.setEndTime(LocalDateTime.now(ZoneId.of("Asia/Shanghai")).plusHours(1));stocks.save(v);
-        keys.addAll(Arrays.asList("test:course:stream.orders","test:course:seckill:pending","test:course:seckill:activity:"+voucher,"test:course:seckill:purchased:"+voucher));
+        keys.addAll(Arrays.asList("test:course:stream.orders","test:course:seckill:pending","test:course:seckill:pending:vouchers","test:course:seckill:activity:"+voucher,"test:course:seckill:purchased:"+voucher));
         as(reader);Result submitted=async.submit(voucher);assertTrue(submitted.getSuccess());Long id=Long.valueOf(submitted.getData().toString());
         assertEquals("PROCESSING",((Map<?,?>)async.status(id).getData()).get("state"));
         assertFalse(async.submit(voucher).getSuccess());
