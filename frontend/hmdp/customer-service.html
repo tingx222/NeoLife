@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>智能客服 · 黑马点评</title>
+  <link rel="stylesheet" href="/css/element.css">
+  <style>
+    *{box-sizing:border-box} body{margin:0;background:#f7f7f7;color:#333;font-family:Arial,sans-serif}
+    #app{max-width:680px;margin:auto;min-height:100vh;display:flex;flex-direction:column}
+    header{padding:18px;background:white;display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #eee}
+    a{color:#e85c28;text-decoration:none} h1{font-size:20px;margin:0} .note{padding:14px;color:#777;font-size:13px;line-height:1.6}
+    .messages{flex:1;padding:0 16px 16px} .bubble{padding:14px;border-radius:12px;background:white;margin:12px 0;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.7}
+    .user{background:#fff0e6;margin-left:35px}.assistant{margin-right:20px} .label{font-size:12px;color:#888;margin-bottom:4px}
+    .suggestions{display:flex;gap:8px;flex-wrap:wrap;padding:0 16px}button{cursor:pointer;border:1px solid #eee;border-radius:8px;padding:10px;background:white;color:#555}
+    button:disabled{opacity:.5;cursor:default}.composer{position:sticky;bottom:0;background:white;padding:16px;border-top:1px solid #eee}
+    textarea{width:100%;resize:vertical;border:1px solid #ddd;border-radius:8px;padding:12px;font:inherit;min-height:80px}
+    .actions{display:flex;justify-content:space-between;align-items:center;margin-top:8px}.send{background:#f63;color:white;border:0}.error{color:#c33;padding:12px 16px}
+  </style>
+</head>
+<body>
+<div id="app">
+  <header><a href="/index.html">← 首页</a><h1>智能客服</h1><button @click="reset" :disabled="busy">新对话</button></header>
+  <div class="note">可以帮你找商户、查询自己的订单、了解平台使用方式。暂不支持代抢、支付或退款。</div>
+  <div v-if="!loggedIn" class="note">请先<a href="/login.html">登录</a>后使用客服。</div>
+  <div class="suggestions"><button v-for="q in suggestions" :key="q" @click="draft=q" :disabled="busy">{{q}}</button></div>
+  <main class="messages" aria-live="polite">
+    <div v-for="(m,i) in messages" :key="i" class="bubble" :class="m.role"><div class="label">{{m.role==='user'?'我':'客服'}}</div>{{m.text}}</div>
+    <div v-if="busy" class="bubble">正在查询，请稍候…</div>
+  </main>
+  <div v-if="error" class="error" role="alert">{{error}}</div>
+  <form class="composer" @submit.prevent="send">
+    <textarea v-model="draft" maxlength="2000" placeholder="例如：帮我找名字里有火锅的店" :disabled="busy || !loggedIn" aria-label="输入客服问题"></textarea>
+    <div class="actions"><span>{{draft.length}} / 2000</span><button class="send" :disabled="busy || !loggedIn || !draft.trim()">发送</button></div>
+  </form>
+</div>
+<script src="/js/vue.js"></script><script src="/js/axios.min.js"></script><script src="/js/common.js"></script>
+<script>
+new Vue({
+  el:'#app',
+  data:{draft:'',busy:false,error:'',sessionId:null,messages:[],loggedIn:!!sessionStorage.getItem('token'),suggestions:['帮我找名字里有火锅的店','如何参加优惠券秒杀？','平台支持退款吗？']},
+  methods:{
+    reset(){this.sessionId=null;this.messages=[];this.error='';},
+    async send(){
+      if(this.busy || !this.draft.trim() || !this.loggedIn)return;
+      const question=this.draft.trim();this.busy=true;this.error='';
+      this.messages.push({role:'user',text:question});this.draft='';
+      try{
+        const result=await axios.post('/customer-agent/chat',{sessionId:this.sessionId,message:question},{timeout:180000});
+        this.sessionId=result.data.sessionId;
+        this.messages.push({role:'assistant',text:result.data.reply});
+      }catch(e){this.error=typeof e==='string'?e:'请求失败，请稍后重试';this.draft=question;}
+      finally{this.busy=false;this.$nextTick(()=>window.scrollTo(0,document.body.scrollHeight));}
+    }
+  }
+});
+</script>
+</body></html>

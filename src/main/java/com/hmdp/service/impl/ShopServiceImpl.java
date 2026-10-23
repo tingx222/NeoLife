@@ -42,9 +42,18 @@ public class ShopServiceImpl extends ServiceImpl<ShopMapper, Shop> implements IS
 
     @Resource
     private CacheClient cacheClient;
+    @Resource private com.hmdp.service.ShopBloomFilter bloom;
+
+    @Override public boolean save(Shop shop) {
+        // MyBatis assigns AUTO IDs during insert; publish membership before this method returns.
+        boolean saved=super.save(shop);
+        if(saved)bloom.add(shop.getId());
+        return saved;
+    }
 
     @Override
     public Result queryById(Long id) {
+        if(!bloom.mightExist(id))return Result.fail("店铺不存在");
 
         //解决缓存穿透
         //Shop shop = cacheClient.queryWithPassThrough(CACHE_SHOP_KEY , id , Shop.class , this::getById , CACHE_SHOP_TTL , TimeUnit.MINUTES);

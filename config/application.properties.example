@@ -1,0 +1,5 @@
+# Copy to config/application.properties; this local file is ignored by Git.
+# Keep the environment variable placeholder, or replace it with your own key locally.
+customer-agent.api-key=${DEEPSEEK_API_KEY:}
+customer-agent.base-url=https://api.deepseek.com
+customer-agent.model=deepseek-flash

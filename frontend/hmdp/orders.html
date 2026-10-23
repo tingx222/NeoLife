@@ -1,0 +1,9 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>我的订单</title>
+<link rel="stylesheet" href="/css/element.css"><style>body{font-family:Arial;background:#f6f6f6;margin:24px auto;padding:16px;max-width:680px}article{padding:16px;background:white;margin:12px 0;border-radius:12px}button{padding:10px;color:#e65b27}a{color:#e65b27}</style></head>
+<body><div id="app"><a href="/info.html">← 我的</a><h2>我的订单</h2><p>这里只显示已落库订单，支付、核销、退款不在本教程实现范围。</p>
+<form @submit.prevent="lookup"><input v-model="orderId" placeholder="输入待确认订单号" maxlength="19"><button>查询处理结果</button></form><p v-if="notice">{{notice}}</p>
+<article v-for="o in orders" :key="o.id"><p>订单号：{{o.id}}</p><p>优惠券：{{o.voucherId}}</p><p>状态：{{states[o.status] || '未知状态'}}</p><small>{{o.createTime}}</small></article>
+<p v-if="!orders.length">暂无已落库订单</p><button @click="page--;load()" :disabled="page===1">上一页</button> 第{{page}}页 <button @click="page++;load()" :disabled="orders.length<10">下一页</button></div>
+<script src="/js/vue.js"></script><script src="/js/axios.min.js"></script><script src="/js/common.js"></script><script>
+new Vue({el:'#app',data:{orders:[],page:1,orderId:'',notice:'',states:{1:'未支付',2:'已支付',3:'已核销',4:'已取消',5:'退款中',6:'已退款'}},created(){this.load()},methods:{load(){axios.get('/voucher-order/of/me',{params:{current:this.page}}).then(({data})=>this.orders=data).catch(e=>this.notice=String(e))},lookup(){if(!/^[1-9][0-9]{0,18}$/.test(this.orderId)){this.notice='请输入有效订单号';return}axios.get('/voucher-order/'+this.orderId).then(({data})=>{this.notice=data.state==='SUCCESS'?'订单已创建':'仍在处理中';this.load()}).catch(e=>this.notice=String(e))}}});
+</script></body></html>
