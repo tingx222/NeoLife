@@ -11,7 +11,10 @@
   <link href="./css/main.css" rel="stylesheet">
 
   <style type="text/css">
-
+    #app { display:flex; flex-direction:column; }
+    .header,.sort-bar { flex-shrink:0; }
+    .shop-list { flex:1; height:auto; min-height:0; }
+    .list-status { padding:16px; text-align:center; color:#777; }
   </style>
 </head>
 <body>
@@ -50,7 +53,7 @@
       评分 <i class="el-icon-arrow-down el-icon--right"></i>
     </div>
   </div>
-  <div class="shop-list" @scroll="onScroll">
+  <div class="shop-list" ref="shopList" @scroll="onScroll">
     <div class="shop-box" v-for="s in shops" :key="s.id" @click="toDetail(s.id)">
       <div class="shop-img"><img :src="s.images" alt=""></div>
       <div class="shop-info">
@@ -74,6 +77,12 @@
         </div>
       </div>
     </div>
+    <div class="list-status">
+      <span v-if="loading">正在加载商户…</span>
+      <template v-else-if="loadError">{{loadError}} <button @click="queryShops">重试</button></template>
+      <span v-else-if="finished">{{shops.length ? '已显示全部附近商户' : '当前分类和位置范围内暂无商户'}}</span>
+      <button v-else @click="queryShops">加载更多商户</button>
+    </div>
   </div>
 </div>
 <script src="./js/vue.js"></script>
@@ -88,6 +97,10 @@
     data: {
       util,
       isReachBottom: false,
+      loading: false,
+      finished: false,
+      loadError: '',
+      queryVersion: 0,
       types: [], // 类型列表
       shops: [], // 商店列表
       typeName: "",
@@ -114,7 +127,7 @@
         if(!navigator.geolocation){this.$message.error('浏览器不支持定位');return;}
         navigator.geolocation.getCurrentPosition(position => {
           this.params.x=position.coords.longitude;this.params.y=position.coords.latitude;
-          this.params.current=1;this.shops=[];this.locationLabel='当前位置';this.queryShops();
+          this.locationLabel='当前位置';this.resetShops();
         }, () => this.$message.error('定位未成功，继续使用杭州示例坐标'), {timeout:10000});
       },
       queryTypes() {
@@ -128,29 +141,41 @@
           })
       },
       queryShops() {
+        if(this.loading || this.finished)return;
+        this.loading=true;this.loadError='';
+        const version=++this.queryVersion;
         axios.get("/shop/of/type", {
-            params: this.params
+            params: Object.assign({}, this.params)
           })
           .then(({data}) => {
-            if (!data) {
-              return
-            }
-            data.forEach(s => s.images = s.images.split(',')[0]);
-            this.shops = this.shops.concat(data);
+            if(version!==this.queryVersion)return;
+            const records=data || [];
+            records.forEach(s => s.images = (s.images || '').split(',')[0]);
+            this.shops = this.shops.concat(records);
+            this.finished=records.length<5;
+            this.params.current++;
           })
           .catch(err => {
-            console.log(err);
-            this.$message.error(err)
-          })
+            if(version===this.queryVersion)this.loadError=String(err);
+          }).finally(() => {
+            if(version!==this.queryVersion)return;
+            this.loading=false;
+            this.$nextTick(() => {
+              const list=this.$refs.shopList;
+              if(!this.loadError && !this.finished && list && list.scrollHeight<=list.clientHeight+1)this.queryShops();
+            });
+          });
+      },
+      resetShops() {
+        this.queryVersion++;this.loading=false;this.finished=false;this.loadError='';
+        this.params.current=1;this.shops=[];this.queryShops();
       },
       handleCommand(t) {
         location.href = "/shop-list.html?type="+t.id+"&name="+t.name;
       },
       sortAndQuery(sortBy) {
         this.params.sortBy = sortBy;
-        this.params.current = 1;
-        this.shops = [];
-        this.queryShops();
+        this.resetShops();
       },
       goBack() {
         history.back();
@@ -162,14 +187,7 @@
         let scrollTop = e.target.scrollTop;
         let offsetHeight = e.target.offsetHeight;
         let scrollHeight = e.target.scrollHeight;
-        if(scrollTop + offsetHeight + 1 > scrollHeight && !this.isReachBottom){
-          this.isReachBottom = true
-          console.log("触底")
-          this.params.current++
-          this.queryShops(this.params.current, 5);
-        }else{
-          this.isReachBottom = false
-        }
+        if(scrollTop + offsetHeight >= scrollHeight - 80)this.queryShops();
       },
     }
   })
