@@ -41,3 +41,4 @@ build/
 /tmp/
 __pycache__/
 *.pyc
+/jmeter.log

@@ -1,0 +1,114 @@
+{
+  "run": "bench_42ae9bec3f6a4d97",
+  "jmeter": "D:\\develop\\apache-jmeter-5.6.3\\bin\\jmeter.BAT",
+  "scenario": "local closed-loop unique-user burst, not a sustained 1500-RPS test",
+  "account_count": 1000,
+  "authentication": "synthetic DB users and temporary Redis sessions; login/SMS excluded",
+  "rounds": [
+    {
+      "voucher_id": 13,
+      "requests": 10,
+      "threads": 2,
+      "max_active_threads": 2,
+      "ramp_seconds": 0,
+      "accepted": 10,
+      "failed": 0,
+      "sample_window_seconds": 1.431,
+      "admission_rps": 6.99,
+      "p95_ms": 101,
+      "p99_ms": 101,
+      "committed": 10,
+      "unique_buyers": 10,
+      "db_stock": 0,
+      "redis_stock": 0,
+      "completion_seconds_from_jmeter_launch": 16.39,
+      "drained": true,
+      "rabbit_counter_delta_unaligned": {
+        "publish": 2,
+        "deliver_get": 2,
+        "ack": 2
+      }
+    },
+    {
+      "voucher_id": 14,
+      "requests": 100,
+      "threads": 10,
+      "max_active_threads": 10,
+      "ramp_seconds": 0,
+      "accepted": 100,
+      "failed": 0,
+      "sample_window_seconds": 1.583,
+      "admission_rps": 63.17,
+      "p95_ms": 69,
+      "p99_ms": 69,
+      "committed": 100,
+      "unique_buyers": 100,
+      "db_stock": 0,
+      "redis_stock": 0,
+      "completion_seconds_from_jmeter_launch": 8.33,
+      "drained": true,
+      "rabbit_counter_delta_unaligned": {
+        "publish": 88,
+        "deliver_get": 88,
+        "ack": 88
+      }
+    },
+    {
+      "voucher_id": 15,
+      "requests": 500,
+      "threads": 50,
+      "max_active_threads": 50,
+      "ramp_seconds": 0,
+      "accepted": 500,
+      "failed": 0,
+      "sample_window_seconds": 2.276,
+      "admission_rps": 219.68,
+      "p95_ms": 125,
+      "p99_ms": 135,
+      "committed": 500,
+      "unique_buyers": 500,
+      "db_stock": 0,
+      "redis_stock": 0,
+      "completion_seconds_from_jmeter_launch": 19.35,
+      "drained": true,
+      "rabbit_counter_delta_unaligned": {
+        "publish": 510,
+        "deliver_get": 510,
+        "ack": 510
+      }
+    },
+    {
+      "voucher_id": 16,
+      "requests": 1000,
+      "threads": 100,
+      "max_active_threads": 100,
+      "ramp_seconds": 0,
+      "accepted": 1000,
+      "failed": 0,
+      "sample_window_seconds": 3.042,
+      "admission_rps": 328.73,
+      "p95_ms": 185,
+      "p99_ms": 221,
+      "committed": 1000,
+      "unique_buyers": 1000,
+      "db_stock": 0,
+      "redis_stock": 0,
+      "completion_seconds_from_jmeter_launch": 33.71,
+      "drained": true,
+      "rabbit_counter_delta_unaligned": {
+        "publish": 850,
+        "deliver_get": 850,
+        "ack": 850
+      }
+    }
+  ],
+  "result": "all rounds passed",
+  "cleanup": "completed",
+  "cleanup_verification": {
+    "test_users_remaining": 0,
+    "test_orders_remaining": 0,
+    "test_vouchers_remaining": 0,
+    "test_stock_rows_remaining": 0
+  },
+  "rabbit_statistics_note": "Management counters are periodically sampled; per-round deltas are unaligned and not exact per-round delivery counts."
+}
