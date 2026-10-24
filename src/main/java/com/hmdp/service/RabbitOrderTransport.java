@@ -18,19 +18,22 @@ public class RabbitOrderTransport {
     public static final String QUEUE="hmdp.orders",DEAD="hmdp.orders.dead";
     private final RabbitTemplate rabbit;private final ObjectMapper mapper;private final OrderWriter writer;private final StringRedisTemplate redis;
     @org.springframework.beans.factory.annotation.Value("${hmdp.order-prefix:}") private String prefix="";
+    @org.springframework.beans.factory.annotation.Value("${hmdp.rabbit.queue:hmdp.orders}") private String queue=QUEUE;
+    @org.springframework.beans.factory.annotation.Value("${hmdp.rabbit.dead-queue:hmdp.orders.dead}") private String dead=DEAD;
     public RabbitOrderTransport(RabbitTemplate rabbit,ObjectMapper mapper,OrderWriter writer,StringRedisTemplate redis){this.rabbit=rabbit;this.mapper=mapper;this.writer=writer;this.redis=redis;}
-    @Bean public Queue orderQueue(){return QueueBuilder.durable(QUEUE).withArgument("x-dead-letter-exchange","").withArgument("x-dead-letter-routing-key",DEAD).build();}
-    @Bean public Queue deadQueue(){return QueueBuilder.durable(DEAD).build();}
+    @Bean public Queue orderQueue(){return QueueBuilder.durable(queue).withArgument("x-dead-letter-exchange","").withArgument("x-dead-letter-routing-key",dead).build();}
+    @Bean public Queue deadQueue(){return QueueBuilder.durable(dead).build();}
     public void publish(VoucherOrder order){
         rabbit.execute(channel->{
             channel.confirmSelect();
             // Declare on this channel: a missing queue must fail before a publish can be confirmed.
-            channel.queueDeclare(QUEUE,true,false,false,java.util.Collections.unmodifiableMap(new java.util.HashMap<String,Object>(){{put("x-dead-letter-exchange","");put("x-dead-letter-routing-key",DEAD);}}));
-            channel.basicPublish("",QUEUE,new AMQP.BasicProperties.Builder().deliveryMode(2).contentType("application/json").messageId(order.getId().toString()).build(),mapper.writeValueAsBytes(order));
+            java.util.Map<String,Object> arguments=new java.util.HashMap<>();arguments.put("x-dead-letter-exchange","");arguments.put("x-dead-letter-routing-key",dead);
+            channel.queueDeclare(queue,true,false,false,arguments);
+            channel.basicPublish("",queue,new AMQP.BasicProperties.Builder().deliveryMode(2).contentType("application/json").messageId(order.getId().toString()).build(),mapper.writeValueAsBytes(order));
             channel.waitForConfirmsOrDie(5000);return null;
         });
     }
-    @RabbitListener(queues=QUEUE,ackMode="MANUAL",concurrency="2-4")
+    @RabbitListener(queues="${hmdp.rabbit.queue:hmdp.orders}",ackMode="MANUAL",concurrency="2-4")
     public void receive(org.springframework.amqp.core.Message message,Channel channel) throws java.io.IOException {
         long tag=message.getMessageProperties().getDeliveryTag();
         try{

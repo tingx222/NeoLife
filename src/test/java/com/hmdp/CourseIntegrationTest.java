@@ -19,7 +19,7 @@ import java.util.concurrent.*;
 import static org.junit.jupiter.api.Assertions.*;
 
 /** Explicit opt-in: real configured MySQL and Redis. DB fixtures roll back; Redis fixture keys are removed. */
-@SpringBootTest(properties={"hmdp.order-worker-enabled=false","hmdp.order-prefix=test:course:","logging.level.com.hmdp=info"})
+@SpringBootTest(properties={"hmdp.order-worker-enabled=false","hmdp.rabbit.enabled=false","hmdp.order-prefix=test:course:","logging.level.com.hmdp=info"})
 @EnabledIfSystemProperty(named="runLocalIntegration",matches="true")
 @Transactional
 @org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc

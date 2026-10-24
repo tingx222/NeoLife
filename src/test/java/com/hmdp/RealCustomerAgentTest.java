@@ -16,7 +16,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
 /** Explicit opt-in: makes paid requests to the configured real model. Never prints credentials. */
-@SpringBootTest(properties={"hmdp.order-worker-enabled=false","logging.level.com.hmdp=info"})
+@SpringBootTest(properties={"hmdp.order-worker-enabled=false","hmdp.rabbit.enabled=false","logging.level.com.hmdp=info"})
 @AutoConfigureMockMvc
 @EnabledIfSystemProperty(named="runRealDeepSeek",matches="true")
 class RealCustomerAgentTest {
