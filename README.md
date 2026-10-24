@@ -5,6 +5,7 @@ Java 8 / Spring Boot 2.3.12 / MyBatis-Plus / MySQL / Redis / Redisson 学习项�
 - [黑马点评知识总结与完成度对照](docs/黑马点评面试总结.md)
 - [智能客服运行、设计与面试指南](docs/智能客服README.md)
 - [布隆过滤器、RabbitMQ与MCP改造及非Docker安装说明](docs/缓存RabbitMQ与MCP改造说明.md)
+- [操作验证指南：从启动到库存对账与客服验收](docs/操作验证指南.md)
 - [智能客服学习 TODO：流程、代码、失败场景与独立改需求](docs/智能客服学习TODO.md)
 
 新增 POST /customer-agent/chat，只读查询商户、本人订单和平台 FAQ。配置 DEEPSEEK_API_KEY 后运行 mvn spring-boot:run，携带现有登录 token 调用。数据库初始化脚本：src/main/resources/db/hmdp.sql。
