@@ -91,3 +91,15 @@ docker compose logs --tail=50 rabbitmq
 Docker Desktop安装可能需要管理员授权、启用WSL2/虚拟化并重启，参见[官方Windows安装说明](https://docs.docker.com/desktop/setup/install/windows-install/)。安装器完成与引擎可用是两个不同状态，只有docker info成功才可启动容器。
 
 本轮代码验证：5个测试类共12项单元测试通过，0失败0错误；Python stdio适配器语法检查、git diff --check通过。尚未产生1500QPS或高可用验证结果。
+
+2026-10-24环境进展：Docker Desktop已通过winget安装，Docker CLI可执行，WSL版本2.7.3。本地.env与Java配置已生成并启用Rabbit模式，密码未输出且不会提交。Docker引擎首次启动仍需检查，不能将CLI安装成功当作容器已运行。
+
+可运行python scripts/Configure-RabbitLocal.py重复同步本地Rabbit配置；会保留DeepSeek密钥，仅更新Rabbit相关属性。安装后如果终端找不到docker，可重开终端或使用C:/Program Files/Docker/Docker/resources/bin/docker.exe。
+
+提供压测脚本scripts/load_orders.py，仅在专用测试活动和测试账号下手动运行：
+
+```powershell
+python scripts/load_orders.py --tokens-file tmp/tokens.json --voucher-id 你的测试券ID --requests 2000 --concurrency 100
+```
+
+脚本输出受理RPS、请求RPS、业务拒绝、传输失败和P95/P99，不输出Token。请求会创建真实预约，默认不自动执行；请使用测试库存。必须使用足够多独立测试用户，否则一人一单拒绝会制造虚高请求RPS。该工具是客户端并发测试，不是恒定1500到达率压测器，也不证明最终数据库吞吐；需另外测队列排空、订单成功数量和库存差额。
