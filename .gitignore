@@ -35,6 +35,7 @@ build/
 # Local API keys and diagnostic output
 /config/application.properties
 /config/application-local.properties
+/config/application-*.properties
 /.env
 /.env.local
 /tmp/

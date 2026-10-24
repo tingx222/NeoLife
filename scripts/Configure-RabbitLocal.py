@@ -22,4 +22,7 @@ for name, value in settings.items():
     expression = '^' + re.escape(name) + r'\s*=.*$'
     text = re.sub(expression, lambda _: name + '=' + value, text, flags=re.M) if re.search(expression, text, re.M) else text + '\n' + name + '=' + value
 config.write_text(text + '\n', encoding='utf-8')
-print('Ignored local .env and application.properties configured; no credentials printed.')
+profile = root / 'config/application-rabbit.properties'
+profile.write_text('# Local rabbit profile credentials; ignored by Git.\n' +
+                   '\n'.join(name + '=' + value for name, value in settings.items()) + '\n', encoding='utf-8')
+print('Ignored local .env, application.properties and application-rabbit.properties configured; no credentials printed.')
